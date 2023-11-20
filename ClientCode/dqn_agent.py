@@ -32,15 +32,6 @@ from keras.layers import Dense, GlobalAveragePooling2D
 from keras.optimizers import Adam
 from keras.models import Model
 
-# TODO - can I delete?
-# try:
-#     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
-#         sys.version_info.major,
-#         sys.version_info.minor,
-#         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
-# except IndexError:
-#     pass
-# import carla
 
 # Image Parameters
 IMAGE_WIDTH = 640
@@ -57,7 +48,6 @@ UPDATE_TARGET_EVERY = 5
 MODEL_NAME = "Xception"
 
 DISCOUNT = 0.99
-epsilon = 1
 
 
 class DQNAgent:
@@ -73,8 +63,9 @@ class DQNAgent:
         self.target_update_counter = 0
 
         # This does not work with TensorFlow 2.0
-        # TODO - update to work with TF 2.0
-        self.graph = tf.compat.v1.get_default_graph()
+        # self.graph = tf.compat.v1.get_default_graph()
+        # TODO - update to work with TF 2.0 - apparently TensorFlow 2.0 enables eager execution by default
+        # so it's no longer necessary to get a session and a default graph.
 
         self.terminate = False
         self.last_logged_episode = 0
@@ -102,12 +93,18 @@ class DQNAgent:
         minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
 
         current_states = np.array([transition[0] for transition in minibatch])/255
-        with self.graph.as_default():
-            current_qs_list = self.model.predict(current_states, PREDICTION_BATCH_SIZE)
+        current_qs_list = self.model.predict(current_states, PREDICTION_BATCH_SIZE)
+
+        # This is the TensorFlow 1.x paradigm
+        # with self.graph.as_default():
+        #     current_qs_list = self.model.predict(current_states, PREDICTION_BATCH_SIZE)
 
         new_current_states = np.array([transition[3] for transition in minibatch])/255
-        with self.graph.as_default():
-            future_qs_list = self.target_model.predict(new_current_states, PREDICTION_BATCH_SIZE)
+        future_qs_list = self.target_model.predict(new_current_states, PREDICTION_BATCH_SIZE)
+
+        # This is the TensorFlow 1.x paradigm
+        # with self.graph.as_default():
+        #     future_qs_list = self.target_model.predict(new_current_states, PREDICTION_BATCH_SIZE)
 
         X = []
         y = []
@@ -130,8 +127,12 @@ class DQNAgent:
             log_this_step = True
             self.last_log_episode = self.tensorboard.step
 
-        with self.graph.as_default():
-            self.model.fit(np.array(X)/255, np.array(y), batch_size=TRAINING_BATCH_SIZE, verbose=0, shuffle=False, callbacks=[self.tensorboard] if log_this_step else None)
+        # This is the TensorFlow 1.x paradigm
+        # with self.graph.as_default():
+        #    self.model.fit(np.array(X)/255, np.array(y), batch_size=TRAINING_BATCH_SIZE, verbose=0, shuffle=False, callbacks=[self.tensorboard] if log_this_step else None)
+        
+        self.model.fit(np.array(X)/255, np.array(y), batch_size=TRAINING_BATCH_SIZE, verbose=0, shuffle=False,
+                       callbacks=[self.tensorboard] if log_this_step else None)
 
         if log_this_step:
             self.target_update_counter += 1
@@ -146,8 +147,12 @@ class DQNAgent:
     def train_in_loop(self):
         X = np.random.uniform(size=(1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)).astype(np.float32)
         y = np.random.uniform(size=(1, 3)).astype(np.float32)
-        with self.graph.as_default():
-            self.model.fit(X,y, verbose=False, batch_size=1)
+
+        self.model.fit(X,y, verbose=False, batch_size=1)
+
+        # This is the TensorFlow 1.x Paradigm
+        # with self.graph.as_default():
+        #     self.model.fit(X,y, verbose=False, batch_size=1)
 
         self.training_initialized = True
 

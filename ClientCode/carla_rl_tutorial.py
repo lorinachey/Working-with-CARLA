@@ -32,11 +32,12 @@ except IndexError:
     pass
 import carla
 
-EPISODES = 100
+EPISODES = 1000
 AGGREGATE_STATS_EVERY = 10
 
 MEMORY_FRACTION = 0.8
 
+epsilon = 1
 MIN_REWARD = -20
 EPSILON_DECAY = 0.95
 MIN_EPSILON = 0.001
@@ -55,9 +56,15 @@ if __name__ == '__main__':
 
     # Memory fraction, used mostly when training multiple agents
     # The original lines here cause issues when using TensorFlow 2.0.
-    # TODO - replace with TF2.0 compatible code
-    gpu_options = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=MEMORY_FRACTION)
-    set_session(tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options)))
+    # gpu_options = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=MEMORY_FRACTION)
+    # set_session.set_session(tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options)))
+    # TODO - replace with TF2.0 compatible code below
+    physical_devices = tf.config.list_physical_devices('GPU')
+    try:
+        tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    except RuntimeError as e:
+        # Invalid device or cannot modify virtual devices once initialized.
+        print(e)
 
     # Create models folder
     if not os.path.isdir('models'):

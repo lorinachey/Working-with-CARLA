@@ -25,7 +25,7 @@ import cv2
 
 # This can be used for testing purposes to observe the camera image.
 # Set to False when doing RL to avoid hogging CPU/GPU resources.
-DISPLAY_PREVIEW = False
+DISPLAY_PREVIEW = True
 
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
@@ -63,9 +63,15 @@ class VehicleEnvironment:
         self.actor_list = []
 
         # Spawn a new vehicle in the world
-        spawn_point = random.choice(self.world.get_map().get_spwan_points())
-        self.vehicle = self.world.spawn_actor(self.mini_cooper, spawn_point)
-        self.actor_list.append(self.vehicle)
+        spawn_successful = False
+        while not spawn_successful:
+            try:
+                spawn_point = random.choice(self.world.get_map().get_spawn_points())
+                self.vehicle = self.world.spawn_actor(self.mini_cooper, spawn_point)
+                self.actor_list.append(self.vehicle)
+                spawn_successful = True
+            except Exception as e:
+                print(e)
 
         # Set up the camera sensor
         self.rgb_cam = self.world.get_blueprint_library().find('sensor.camera.rgb')
@@ -112,7 +118,7 @@ class VehicleEnvironment:
             self.vehicle.apply_control(carla.VehicleControl(throttle=1.0, steer=STEER_AMOUNT))
 
         # Penalize getting into a collision with a hefty negative reward
-        if len(self.collision_hist) != 0:
+        if len(self.collision_history) != 0:
             done = True
             reward = -10
         else:
