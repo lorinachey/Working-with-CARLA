@@ -38,7 +38,7 @@ AGGREGATE_STATS_EVERY = 10
 MEMORY_FRACTION = 0.8
 
 epsilon = 1
-MIN_REWARD = -20
+MIN_REWARD = -1
 EPSILON_DECAY = 0.95
 MIN_EPSILON = 0.001
 
@@ -47,18 +47,13 @@ MODEL_NAME = "Test-Xception"
 if __name__ == '__main__':
     FPS = 60
     # For stats
-    ep_rewards = [-20]
+    ep_rewards = [MIN_REWARD]
 
     # For more repetitive results
     random.seed(1)
     np.random.seed(1)
     tf.random.set_seed(1)
 
-    # Memory fraction, used mostly when training multiple agents
-    # The original lines here cause issues when using TensorFlow 2.0.
-    # gpu_options = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=MEMORY_FRACTION)
-    # set_session.set_session(tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options)))
-    # TODO - replace with TF2.0 compatible code below
     physical_devices = tf.config.list_physical_devices('GPU')
     try:
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
@@ -113,7 +108,11 @@ if __name__ == '__main__':
                     action = np.argmax(agent.get_qs(current_state))
                 else:
                     # Get random action
-                    action = np.random.randint(0, 3)
+                    # action = np.random.randint(0, 3)
+
+                    # Choose a random action but from a distribution that makes turning left or right twice as frequent
+                    action = np.random.choice([0, 1, 2], p=[0.1, 0.45, 0.45])
+
                     # This takes no time, so we add a delay matching 60 FPS (prediction above takes longer)
                     time.sleep(1/FPS)
 

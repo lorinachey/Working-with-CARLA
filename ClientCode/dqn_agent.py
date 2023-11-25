@@ -39,7 +39,7 @@ IMAGE_HEIGHT = 480
 
 # Training Parameters
 SECONDS_PER_EPISODE = 10
-REPLAY_MEMORY_SIZE = 5_000
+REPLAY_MEMORY_SIZE = 2_000
 MIN_REPLAY_MEMORY_SIZE = 1_000
 MINIBATCH_SIZE = 16
 PREDICTION_BATCH_SIZE = 1
@@ -61,11 +61,6 @@ class DQNAgent:
 
         self.tensorboard = ModifiedTensorBoard(log_dir=f"logs/{MODEL_NAME}-{int(time.time())}")
         self.target_update_counter = 0
-
-        # This does not work with TensorFlow 2.0
-        # self.graph = tf.compat.v1.get_default_graph()
-        # TODO - update to work with TF 2.0 - apparently TensorFlow 2.0 enables eager execution by default
-        # so it's no longer necessary to get a session and a default graph.
 
         self.terminate = False
         self.last_logged_episode = 0
@@ -95,16 +90,8 @@ class DQNAgent:
         current_states = np.array([transition[0] for transition in minibatch])/255
         current_qs_list = self.model.predict(current_states, PREDICTION_BATCH_SIZE)
 
-        # This is the TensorFlow 1.x paradigm
-        # with self.graph.as_default():
-        #     current_qs_list = self.model.predict(current_states, PREDICTION_BATCH_SIZE)
-
         new_current_states = np.array([transition[3] for transition in minibatch])/255
         future_qs_list = self.target_model.predict(new_current_states, PREDICTION_BATCH_SIZE)
-
-        # This is the TensorFlow 1.x paradigm
-        # with self.graph.as_default():
-        #     future_qs_list = self.target_model.predict(new_current_states, PREDICTION_BATCH_SIZE)
 
         X = []
         y = []
@@ -127,10 +114,6 @@ class DQNAgent:
             log_this_step = True
             self.last_log_episode = self.tensorboard.step
 
-        # This is the TensorFlow 1.x paradigm
-        # with self.graph.as_default():
-        #    self.model.fit(np.array(X)/255, np.array(y), batch_size=TRAINING_BATCH_SIZE, verbose=0, shuffle=False, callbacks=[self.tensorboard] if log_this_step else None)
-        
         self.model.fit(np.array(X)/255, np.array(y), batch_size=TRAINING_BATCH_SIZE, verbose=0, shuffle=False,
                        callbacks=[self.tensorboard] if log_this_step else None)
 
@@ -149,10 +132,6 @@ class DQNAgent:
         y = np.random.uniform(size=(1, 3)).astype(np.float32)
 
         self.model.fit(X,y, verbose=False, batch_size=1)
-
-        # This is the TensorFlow 1.x Paradigm
-        # with self.graph.as_default():
-        #     self.model.fit(X,y, verbose=False, batch_size=1)
 
         self.training_initialized = True
 

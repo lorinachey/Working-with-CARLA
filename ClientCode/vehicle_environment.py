@@ -25,12 +25,12 @@ import cv2
 
 # This can be used for testing purposes to observe the camera image.
 # Set to False when doing RL to avoid hogging CPU/GPU resources.
-DISPLAY_PREVIEW = True
+DISPLAY_PREVIEW = False
 
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 
-STEER_AMOUNT = 0.9
+STEER_AMOUNT = 1.0
 
 # Training Parameters
 SECONDS_PER_EPISODE = 10
@@ -55,14 +55,11 @@ class VehicleEnvironment:
         blueprint_library = self.world.get_blueprint_library()
         self.mini_cooper = blueprint_library.filter('cooper_s_2021')[0]
 
-
-    def reset(self):
-
-        # Clear the collision and actors lists
-        self.collision_history = []
-        self.actor_list = []
-
-        # Spawn a new vehicle in the world
+    def spawn_vehicle_and_agent(self):
+        """
+        Repeatedly attempts to spawn a vehicle and actor in the world. If an exception
+        is thrown generating the spawn point (e.g. due to collision), try again.
+        """
         spawn_successful = False
         while not spawn_successful:
             try:
@@ -72,6 +69,17 @@ class VehicleEnvironment:
                 spawn_successful = True
             except Exception as e:
                 print(e)
+
+    def reset(self):
+
+        # Clear the collision and actors lists
+        self.collision_history = []
+        
+        # Actors are destroyed at the end of each episode so we only need to create the empty list here
+        self.actor_list = []
+
+        # Spawn a new vehicle in the world
+        self.spawn_vehicle_and_agent()
 
         # Set up the camera sensor
         self.rgb_cam = self.world.get_blueprint_library().find('sensor.camera.rgb')
@@ -107,23 +115,23 @@ class VehicleEnvironment:
 
     def step(self, action):
         """
-        The action space will be left, center, and right. We'll represent these actions
+        The action space will be center, left and right. We'll represent these actions
         using the values 1, 0, 2, respectively.
         """
         if action == 0:
-            self.vehicle.apply_control(carla.VehicleControl(throttle=1.0, steer=0))
+            self.vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=0))
         if action == 1:
-            self.vehicle.apply_control(carla.VehicleControl(throttle=1.0, steer=-1*STEER_AMOUNT))
+            self.vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=-1*STEER_AMOUNT))
         if action == 2:
-            self.vehicle.apply_control(carla.VehicleControl(throttle=1.0, steer=STEER_AMOUNT))
+            self.vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=STEER_AMOUNT))
 
         # Penalize getting into a collision with a hefty negative reward
         if len(self.collision_history) != 0:
             done = True
-            reward = -10
+            reward = -1
         else:
             done = False
-            reward = 1
+            reward = 0.5
 
         if self.episode_start + SECONDS_PER_EPISODE < time.time():
             done = True
