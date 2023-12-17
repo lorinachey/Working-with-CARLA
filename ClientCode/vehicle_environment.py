@@ -30,7 +30,8 @@ DISPLAY_PREVIEW = False
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 
-STEER_AMOUNT = 1.0
+STEER_AMOUNT  = 1.0
+FULL_THROTTLE = 1.0
 
 # Training Parameters
 SECONDS_PER_EPISODE = 10
@@ -55,6 +56,7 @@ class VehicleEnvironment:
         blueprint_library = self.world.get_blueprint_library()
         self.mini_cooper = blueprint_library.filter('cooper_s_2021')[0]
 
+
     def spawn_vehicle_and_agent(self):
         """
         Repeatedly attempts to spawn a vehicle and actor in the world. If an exception
@@ -68,6 +70,9 @@ class VehicleEnvironment:
                 self.actor_list.append(self.vehicle)
                 spawn_successful = True
             except Exception as e:
+                spawn_successful = False
+                for actor in self.actor_list:
+                    actor.destroy()
                 print(e)
 
     def reset(self):
@@ -79,7 +84,27 @@ class VehicleEnvironment:
         self.actor_list = []
 
         # Spawn a new vehicle in the world
-        self.spawn_vehicle_and_agent()
+        # self.spawn_vehicle_and_agent()
+
+        # When Carla breaks (stops working) or spawn point is already occupied, spawning a car throws an exception
+        # We allow it to try for 3 seconds then forgive (will cause episode restart and in case of Carla broke inform
+        # main thread that Carla simulator needs a restart)
+        spawn_start = time.time()
+        while True:
+            try:
+                # Get random spot from a list from predefined spots and try to spawn a car there
+                self.transform = random.choice(self.world.get_map().get_spawn_points())
+                self.vehicle = self.world.spawn_actor(self.mini_cooper, self.transform)
+                break
+            except:
+                time.sleep(0.01)
+
+            # If that can't be done in 3 seconds - forgive (and allow main process to handle for this problem)
+            if time.time() > spawn_start + 3:
+                raise Exception('Can\'t spawn a car')
+
+        # Append actor to a list of spawned actors, we need to remove them later
+        self.actor_list.append(self.vehicle)
 
         # Set up the camera sensor
         self.rgb_cam = self.world.get_blueprint_library().find('sensor.camera.rgb')
@@ -117,21 +142,23 @@ class VehicleEnvironment:
         """
         The action space will be center, left and right. We'll represent these actions
         using the values 1, 0, 2, respectively.
+
+        TODO - replace magic numbers with constants
         """
         if action == 0:
-            self.vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=0))
+            self.vehicle.apply_control(carla.VehicleControl(throttle=FULL_THROTTLE, steer=0))
         if action == 1:
-            self.vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=-1*STEER_AMOUNT))
+            self.vehicle.apply_control(carla.VehicleControl(throttle=FULL_THROTTLE, steer=-1*STEER_AMOUNT))
         if action == 2:
-            self.vehicle.apply_control(carla.VehicleControl(throttle=0.5, steer=STEER_AMOUNT))
+            self.vehicle.apply_control(carla.VehicleControl(throttle=FULL_THROTTLE, steer=STEER_AMOUNT))
 
         # Penalize getting into a collision with a hefty negative reward
         if len(self.collision_history) != 0:
             done = True
-            reward = -1
+            reward = -200
         else:
             done = False
-            reward = 0.5
+            reward = 1.0
 
         if self.episode_start + SECONDS_PER_EPISODE < time.time():
             done = True

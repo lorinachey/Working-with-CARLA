@@ -10,7 +10,9 @@ from keras.models import load_model
 from vehicle_environment import VehicleEnvironment
 from carla_rl_tutorial import MEMORY_FRACTION
 
-MODEL_PATH = 'models/Test-Xception____12.30max____5.65avg___-1.00min__1700782315.model'
+# MODEL_PATH = 'models/Test-Xception___268.00max__133.30avg_-164.00min__1701016396.model'
+MODEL_PATH = 'models/Test-Xception___166.00max___42.70avg__-78.00min__1701016598.model'
+
 
 if __name__ == '__main__':
 

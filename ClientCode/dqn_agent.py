@@ -39,7 +39,7 @@ IMAGE_HEIGHT = 480
 
 # Training Parameters
 SECONDS_PER_EPISODE = 10
-REPLAY_MEMORY_SIZE = 2_000
+REPLAY_MEMORY_SIZE = 5_000
 MIN_REPLAY_MEMORY_SIZE = 1_000
 MINIBATCH_SIZE = 16
 PREDICTION_BATCH_SIZE = 1
@@ -78,9 +78,11 @@ class DQNAgent:
         model.compile(loss="mse", optimizer=Adam(learning_rate=0.001), metrics=["accuracy"])
         return model
 
+    #@profile - max recursion depth exceeded with this call
     def update_replay_memory(self, transition):
         self.replay_memory.append(transition)
 
+    
     def train(self):
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
             return
@@ -124,14 +126,20 @@ class DQNAgent:
             self.target_model.set_weights(self.model.get_weights())
             self.target_update_counter = 0
 
+        # Added to see if this can fix the memory leak
+        # Update - it appears to help a little bit, but doesn't solve it entirely...
+        # tf.keras.backend.clear_session()
+
     def get_qs(self, state):
+        # `*state.shape` takes the dimensions from state.shape and unpacks them as separate arguments to the .reshape() method
         return self.model.predict(np.array(state).reshape(-1, *state.shape)/255)[0]
 
+    # @profile
     def train_in_loop(self):
         X = np.random.uniform(size=(1, IMAGE_HEIGHT, IMAGE_WIDTH, 3)).astype(np.float32)
         y = np.random.uniform(size=(1, 3)).astype(np.float32)
 
-        self.model.fit(X,y, verbose=False, batch_size=1)
+        self.model.fit(X,y, verbose=False, batch_size=1, callbacks=[self.tensorboard])
 
         self.training_initialized = True
 
@@ -140,3 +148,7 @@ class DQNAgent:
                 return
             self.train()
             time.sleep(0.01)
+
+            # Added to address memory leak issues
+            # TODO - validate that this improves the situation using memory_profiler
+            # tf.keras.backend.clear_session()
